@@ -95,7 +95,7 @@ class SmbCrawler():
         return tid
 
     def spider(self, share, root, maxdepth):
-        if maxdepth <= 0:
+        if maxdepth < 0:
             return []
         try:
             files = self.ls(share, root)
