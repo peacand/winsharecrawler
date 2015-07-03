@@ -25,7 +25,7 @@ class SmbCrawler():
         self.nthash = None
         self.username = ''
         self.domain = ''
-        self.debug = False
+        self.debug = True
 
     def open(self, host, port):
         self.host = host
@@ -108,10 +108,13 @@ class SmbCrawler():
                 print "Error in ls("+share+","+root+","+str(maxdepth)+") : " + str(e)
             return []
         for f in files:
+            new_root = ntpath.join(root, f['longname'])
+            new_root = ntpath.normpath(new_root)
             if not f['directory']:
-                print "  [*]" + self.host + '\\' + share.encode('utf-8') + root.encode('utf-8') + f['shortname'].encode('utf-8')
+                print u"  [*] -F- ".encode('utf-8') + self.host.encode('utf-8') + u'\\'.encode('utf-8') + share.encode('utf-8') + new_root
             else:
-                self.spider(share, root + f['shortname'] + '\\', maxdepth - 1)
+                print u"  [*] -D- ".encode('utf-8') + self.host.encode('utf-8') + u'\\'.encode('utf-8') + share.encode('utf-8') + new_root
+                self.spider(share, root + f['longname'] + '\\', maxdepth - 1)
 
     def crawl(self, maxdepth, thread = 1):
         self.maxdepth = maxdepth
@@ -136,7 +139,7 @@ if __name__ == "__main__":
         crawler.login(domain, username)
         crawler.crawl(maxdepth = maxdepth)
     except Exception,e:
-        if False:
+        if True:
             print "Error : " + str(e)
 
 
