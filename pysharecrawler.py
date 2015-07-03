@@ -25,7 +25,13 @@ class SmbCrawler():
         self.nthash = None
         self.username = ''
         self.domain = ''
-        self.debug = True
+        self.debug = False
+
+    def set_verbose(self, verbose):
+        if verbose == 'True':
+            self.debug = True
+        else:
+            self.debug = False
 
     def open(self, host, port):
         self.host = host
@@ -130,8 +136,9 @@ class SmbCrawler():
 
 if __name__ == "__main__":
     try:
-        host,username,maxdepth = sys.argv[1], sys.argv[2], int(sys.argv[3])
+        host,username,maxdepth,verbose = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
         crawler = SmbCrawler()
+        crawler.set_verbose(verbose)
         crawler.open(host,445)
         domain = ''
         if '/' in username:
@@ -139,7 +146,7 @@ if __name__ == "__main__":
         crawler.login(domain, username)
         crawler.crawl(maxdepth = maxdepth)
     except Exception,e:
-        if True:
+        if sys.argv[4] == 'True':
             print "Error : " + str(e)
 
 
