@@ -52,7 +52,11 @@ class SmbCrawler():
         from getpass import getpass
         password = getpass("Password:")
 
-        self.smb.login(username, password, domain=domain)
+        try:
+            self.smb.login(username, password, domain=domain)
+        except Exception,e:
+            print "Authentication failed : " + str(e)
+            sys.exit(0)
         self.username = username
         self.domain = domain
 
@@ -126,7 +130,10 @@ if __name__ == "__main__":
         host,username,maxdepth = sys.argv[1], sys.argv[2], int(sys.argv[3])
         crawler = SmbCrawler()
         crawler.open(host,445)
-        crawler.login('', username)
+        domain = ''
+        if '/' in username:
+            domain,username = tuple(username.split('/'))
+        crawler.login(domain, username)
         crawler.crawl(maxdepth = maxdepth)
     except Exception,e:
         if False:
