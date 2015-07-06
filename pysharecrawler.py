@@ -10,8 +10,10 @@ from impacket import smb, version, smb3, nt_errors
 from impacket.dcerpc.v5 import samr, transport, srvs
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.smbconnection import *
+from getpass import getpass
 import argparse
 import ntpath
+import netaddr
 #import os
 
 
@@ -25,13 +27,13 @@ class SmbCrawler():
         self.nthash = None
         self.username = ''
         self.domain = ''
-        self.debug = False
+        self.verbose = False
 
     def set_verbose(self, verbose):
-        if verbose == 'True':
-            self.debug = True
+        if verbose:
+            self.verbose = True
         else:
-            self.debug = False
+            self.verbose = False
 
     def open(self, host, port):
         self.host = host
@@ -50,13 +52,10 @@ class SmbCrawler():
         else:
             logging.info("SMBv3.0 dialect used")
 
-    def login(self, domain, username):
+    def login(self, domain, username, password):
         if self.smb is None:
             logging.error("No connection open")
             return
-
-        from getpass import getpass
-        password = getpass("Password:")
 
         try:
             self.smb.login(username, password, domain=domain)
@@ -110,7 +109,7 @@ class SmbCrawler():
         try:
             files = self.ls(share, root)
         except Exception,e:
-            if self.debug:
+            if self.verbose:
                 print "Error in ls("+share+","+root+","+str(maxdepth)+") : " + str(e)
             return []
         for f in files:
@@ -130,23 +129,49 @@ class SmbCrawler():
             try:
                 tid = self.use(share)
             except Exception,e:
-                if self.debug:
+                if self.verbose:
                     print "Error in use("+share+") : " + str(e)
             self.spider(share, '\\', maxdepth)
 
 if __name__ == "__main__":
-    try:
-        host,username,maxdepth,verbose = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
-        crawler = SmbCrawler()
-        crawler.set_verbose(verbose)
-        crawler.open(host,445)
-        domain = ''
-        if '/' in username:
-            domain,username = tuple(username.split('/'))
-        crawler.login(domain, username)
-        crawler.crawl(maxdepth = maxdepth)
-    except Exception,e:
-        if sys.argv[4] == 'True':
-            print "Error : " + str(e)
+    rhosts = []
+    domain = ''
+    username = ''
 
+    parser = argparse.ArgumentParser(description='Complete Windows Samba share crawler and analyzer.')
+    parser.add_argument('LOGIN', action="store", help="Can be standalone username for local account or domain/username")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--rhosts', action="store", default=None, help="IP Adress or IP/CIDR")
+    group.add_argument('--file', action="store", default=None, help="Read IP adresses from input file. One adress per line")
+    parser.add_argument('--verbose', action="store_true", default=False, help="Show debug messages")
+    parser.add_argument('--maxdepth', action="store", type=int, default=1, help="Maximum depth to crawl in shares (default=1)")
 
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+    
+    result = parser.parse_args()
+    cmdargs = dict(result._get_kwargs())
+    
+    if cmdargs['file'] != None:
+        rhosts += [line.strip() for line in open(cmdargs['file'], 'r')]
+    else:
+        rhosts += [ip.__str__() for ip in list(netaddr.IPNetwork(cmdargs['rhosts']))]
+    if '/' in cmdargs['LOGIN']:
+        domain, username = tuple(cmdargs['LOGIN'].split('/'))
+    else:
+        domain, username = '', cmdargs['LOGIN']
+    password = getpass("Password:")
+
+    crawler = SmbCrawler()
+    crawler.set_verbose(cmdargs['verbose'])
+
+    for rhost in rhosts:
+        print '\n -- ' + rhost + ' -- \n'
+        try:
+            crawler.open(rhost,445)
+            crawler.login(domain, username, password)
+            crawler.crawl(maxdepth = cmdargs['maxdepth'])
+        except Exception,e:
+            if crawler.verbose:
+                print "Error : " + str(e)
