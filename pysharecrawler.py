@@ -1,5 +1,11 @@
 #!/usr/bin/python
 
+"""
+Michael Molho 
+2015
+michael.molho@gmail.com
+"""
+
 from impacket.dcerpc import srvsvc
 
 import sys
@@ -61,7 +67,7 @@ class SmbCrawler():
             self.smb.login(username, password, domain=domain)
         except Exception,e:
             print "Authentication failed : " + str(e)
-            sys.exit(0)
+            raise
         self.username = username
         self.domain = domain
 
