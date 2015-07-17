@@ -20,11 +20,11 @@ from getpass import getpass
 import argparse
 import ntpath
 import netaddr
-#import os
+from outwriter import CsvOutWriter, SqliteOutWriter, StandardOutWriter
 
 
 class SmbCrawler():    
-    def __init__(self):
+    def __init__(self, verbose=False, out="print"):
         self.host = ''
         self.smb = None
         self.maxdepth = 999
@@ -33,13 +33,16 @@ class SmbCrawler():
         self.nthash = None
         self.username = ''
         self.domain = ''
-        self.verbose = False
+        self.verbose = verbose
 
-    def set_verbose(self, verbose):
-        if verbose:
-            self.verbose = True
+        if len(out) > 4 and out[0:4] == "csv:": 
+            filepath = out.split(':')[1]
+            self.outwriter = CsvOutWriter(filepath)
+        elif len(out) > 7 and out[0:7] == "sqlite:": 
+            filepath = out.split(':')[1]
+            self.outwriter = SqliteOutWriter(filepath)
         else:
-            self.verbose = False
+            self.outwriter = StandardOutWriter()
 
     def open(self, host, port):
         self.host = host
@@ -121,10 +124,8 @@ class SmbCrawler():
         for f in files:
             new_root = ntpath.join(root, f['longname'])
             new_root = ntpath.normpath(new_root)
-            if not f['directory']:
-                print u"  [*] -F- ".encode('utf-8') + self.host.encode('utf-8') + u'\\'.encode('utf-8') + share.encode('utf-8') + new_root
-            else:
-                print u"  [*] -D- ".encode('utf-8') + self.host.encode('utf-8') + u'\\'.encode('utf-8') + share.encode('utf-8') + new_root
+            self.outwriter.write(self.host, share, f, new_root)
+            if f['directory']:
                 self.spider(share, root + f['longname'] + '\\', maxdepth - 1)
 
     def crawl(self, maxdepth, thread = 1):
@@ -146,11 +147,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Complete Windows Samba share crawler and analyzer.')
     parser.add_argument('LOGIN', action="store", help="Can be standalone username for local account or domain/username")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--rhosts', action="store", default=None, help="IP Adress or IP/CIDR")
-    group.add_argument('--file', action="store", default=None, help="Read IP adresses from input file. One adress per line")
+    usergroup = parser.add_mutually_exclusive_group(required=True)
+    usergroup.add_argument('--rhosts', action="store", default=None, help="IP Adress or IP/CIDR")
+    usergroup.add_argument('--file', action="store", default=None, help="Read IP adresses from input file. One adress per line")
     parser.add_argument('--verbose', action="store_true", default=False, help="Show debug messages")
     parser.add_argument('--maxdepth', action="store", type=int, default=1, help="Maximum depth to crawl in shares (default=1)")
+    parser.add_argument('--out', action="store", default="print", help="Output type: (print, csv:<filepath>, sqlite:<dbpath>)")
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -169,8 +171,7 @@ if __name__ == "__main__":
         domain, username = '', cmdargs['LOGIN']
     password = getpass("Password:")
 
-    crawler = SmbCrawler()
-    crawler.set_verbose(cmdargs['verbose'])
+    crawler = SmbCrawler( verbose=cmdargs['verbose'], out=cmdargs['out'] )
 
     for rhost in rhosts:
         print '\n -- ' + rhost + ' -- \n'
