@@ -16,6 +16,7 @@ from impacket import smb, version, smb3, nt_errors
 from impacket.dcerpc.v5 import samr, transport, srvs
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.smbconnection import *
+from impacket.nmb import NetBIOS
 from getpass import getpass
 import argparse
 import ntpath
@@ -26,6 +27,7 @@ from outwriter import CsvOutWriter, SqliteOutWriter, StandardOutWriter
 class SmbCrawler():    
     def __init__(self, verbose=False, out="print"):
         self.host = ''
+        self.nbtname = ''
         self.smb = None
         self.maxdepth = 999
         self.password = None
@@ -44,8 +46,17 @@ class SmbCrawler():
         else:
             self.outwriter = StandardOutWriter()
 
+    def resolveNbtName(self):
+        nbt = NetBIOS() 
+        try:
+           name = nbt.getnetbiosname(self.host) 
+           return name
+        except:
+           return ''
+
     def open(self, host, port):
         self.host = host
+        self.nbtname = self.resolveNbtName()
         if port == 139:
             self.smb = SMBConnection('*SMBSERVER', host, sess_port=port)
         else:
@@ -124,7 +135,7 @@ class SmbCrawler():
         for f in files:
             new_root = ntpath.join(root, f['longname'])
             new_root = ntpath.normpath(new_root)
-            self.outwriter.write(self.host, share, f, new_root)
+            self.outwriter.write(self.host, self.nbtname, share, f, new_root)
             if f['directory']:
                 self.spider(share, root + f['longname'] + '\\', maxdepth - 1)
 
@@ -139,13 +150,14 @@ class SmbCrawler():
                 if self.verbose:
                     print "Error in use("+share+") : " + str(e)
             self.spider(share, '\\', maxdepth)
+            self.outwriter.commit()
 
 if __name__ == "__main__":
     rhosts = []
     domain = ''
     username = ''
 
-    parser = argparse.ArgumentParser(description='Complete Windows Samba share crawler and analyzer.')
+    parser = argparse.ArgumentParser(description='Complete Windows Samba share crawler.')
     parser.add_argument('LOGIN', action="store", help="Can be standalone username for local account or domain/username")
     usergroup = parser.add_mutually_exclusive_group(required=True)
     usergroup.add_argument('--rhosts', action="store", default=None, help="IP Adress or IP/CIDR")
