@@ -90,6 +90,25 @@ class SmbCrawler():
         else:
             logging.info("USER Session Granted")
 
+    def login_hash(self, domain, username, hashes):
+        if self.smb is None:
+            logging.error("No connection open")
+            return
+
+        try:
+            lmhash, nthash = hashes.split(':')
+            self.smb.login(username, '', domain,lmhash=lmhash, nthash=nthash)
+        except Exception as e:
+            print ("Authentication failed : " + str(e))
+            raise
+        self.username = username
+        self.domain = domain
+
+        if self.smb.isGuestSession() > 0:
+            logging.info("GUEST Session Granted")
+        else:
+            logging.info("USER Session Granted")
+
     def shares(self):
         shares = []
         rpctransport = transport.SMBTransport(self.smb.getRemoteHost(), self.smb.getRemoteHost(), filename = r'\srvsvc', smb_connection = self.smb)
@@ -157,6 +176,7 @@ if __name__ == "__main__":
     usergroup = parser.add_mutually_exclusive_group(required=True)
     usergroup.add_argument('--rhosts', action="store", default=None, help="IP Adress or IP/CIDR")
     usergroup.add_argument('--file', action="store", default=None, help="Read IP adresses from input file. One adress per line")
+    parser.add_argument('--hashes', action="store", default=None, help="NTLM hashes, format is LMHASH:NTHASH")
     parser.add_argument('--verbose', action="store_true", default=False, help="Show debug messages")
     parser.add_argument('--maxdepth', action="store", type=int, default=1, help="Maximum depth to crawl in shares (default=1)")
     parser.add_argument('--out', action="store", default="print", help="Output type: (print, csv:<filepath>, sqlite:<dbpath>)")
@@ -176,7 +196,9 @@ if __name__ == "__main__":
         domain, username = tuple(cmdargs['LOGIN'].split('/'))
     else:
         domain, username = '', cmdargs['LOGIN']
-    password = getpass("Password:")
+
+    if cmdargs['hashes'] == None:
+        password = getpass("Password:")
 
     crawler = SmbCrawler( verbose=cmdargs['verbose'], out=cmdargs['out'] )
 
@@ -184,9 +206,11 @@ if __name__ == "__main__":
         print ('\n -- ' + rhost + ' -- \n')
         try:
             crawler.open(rhost,445)
-            if crawler.nbtname != '':
-                print ('[+] Resolve netbios name : ' + crawler.nbtname + '\n')
-            crawler.login(domain, username, password)
+            print ('[+] Resolve netbios name : ' + crawler.nbtname + '\n')
+            if cmdargs['hashes'] != None:
+                crawler.login_hash(domain, username, cmdargs['hashes'])
+            else:
+                crawler.login(domain, username, password)
             crawler.crawl(maxdepth = cmdargs['maxdepth'])
         except Exception as e:
             if crawler.verbose:
