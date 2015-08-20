@@ -79,8 +79,8 @@ class SmbCrawler():
 
         try:
             self.smb.login(username, password, domain=domain)
-        except Exception,e:
-            print "Authentication failed : " + str(e)
+        except Exception as e:
+            print ("Authentication failed : " + str(e))
             raise
         self.username = username
         self.domain = domain
@@ -128,9 +128,9 @@ class SmbCrawler():
             return []
         try:
             files = self.ls(share, root)
-        except Exception,e:
+        except Exception as e:
             if self.verbose:
-                print "Error in ls("+share+","+root+","+str(maxdepth)+") : " + str(e)
+                print ("Error in ls("+share+","+root+","+str(maxdepth)+") : " + str(e))
             return []
         for f in files:
             new_root = ntpath.join(root, f['longname'])
@@ -143,12 +143,12 @@ class SmbCrawler():
         self.maxdepth = maxdepth
         shares = self.shares()
         for share in shares:
-            print '[+] Spidering ' + share
+            print ('[+] Spidering ' + share)
             try:
                 tid = self.use(share)
-            except Exception,e:
+            except Exception as e:
                 if self.verbose:
-                    print "Error in use("+share+") : " + str(e)
+                    print ("Error in use("+share+") : " + str(e))
             self.spider(share, '\\', maxdepth)
             self.outwriter.commit()
 
@@ -186,11 +186,11 @@ if __name__ == "__main__":
     crawler = SmbCrawler( verbose=cmdargs['verbose'], out=cmdargs['out'] )
 
     for rhost in rhosts:
-        print '\n -- ' + rhost + ' -- \n'
+        print ('\n -- ' + rhost + ' -- \n')
         try:
             crawler.open(rhost,445)
             crawler.login(domain, username, password)
             crawler.crawl(maxdepth = cmdargs['maxdepth'])
-        except Exception,e:
+        except Exception as e:
             if crawler.verbose:
-                print "Error : " + str(e)
+                print ("Error : " + str(e))

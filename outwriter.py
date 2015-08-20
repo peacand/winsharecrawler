@@ -37,16 +37,15 @@ class SqliteOutWriter():
         self.dbconn = sqlite3.connect(self.filepath)
         self.cur = self.dbconn.cursor()    
         if not keepexisting:
-            self.cur.execute("CREATE TABLE Entries(Type TEXT, Host TEXT, Share TEXT, Filepath TEXT)")
+            self.cur.execute("CREATE TABLE Entries(Type TEXT, Host TEXT, NbtName TEXT, Share TEXT, Filepath TEXT)")
 
     def write(self, host, nbtname, share, fileattrs, filepath):
-        print filepath.decode('utf-8', 'ignore')
         if not fileattrs['directory']:
-            query = "INSERT INTO Entries VALUES(?, ?, ?, ?)"
-            self.cur.execute( query, ("F".encode('utf-8'), host.encode('utf-8'), share.encode('utf-8'), filepath) )
+            query = "INSERT INTO Entries VALUES(?, ?, ?, ?, ?)"
+            self.cur.execute( query, ("F".encode('utf-8'), host.encode('utf-8'), nbtname.encode('utf-8'), share.encode('utf-8'), filepath.encode('utf-8')) )
         else:
-            query = "INSERT INTO Entries VALUES(?, ?, ?, ?)"
-            self.cur.execute( query, ("D".encode('utf-8'), host.encode('utf-8'), share.encode('utf-8'), filepath) )
+            query = "INSERT INTO Entries VALUES(?, ?, ?, ?, ?)"
+            self.cur.execute( query, ("D".encode('utf-8'), host.encode('utf-8'), nbtname.encode('utf-8'), share.encode('utf-8'), filepath.encode('utf-8')) )
 
     def commit(self):
         self.dbconn.commit()
