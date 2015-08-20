@@ -7,6 +7,17 @@ michael.molho@gmail.com
 import os
 import os.path
 import sqlite3
+import time
+import datetime
+
+
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)
+
 
 class CsvOutWriter():
     def __init__(self, filepath): 
@@ -37,15 +48,24 @@ class SqliteOutWriter():
         self.dbconn = sqlite3.connect(self.filepath)
         self.cur = self.dbconn.cursor()    
         if not keepexisting:
-            self.cur.execute("CREATE TABLE Entries(Type TEXT, Host TEXT, NbtName TEXT, Share TEXT, Filepath TEXT)")
+            self.cur.execute("CREATE TABLE Entries(Host TEXT, \
+                                                   NbtName TEXT, \
+                                                   Attributes INTEGER, \
+                                                   Mtime INTEGER, \
+                                                   Size INTEGER, \
+                                                   Share TEXT, \
+                                                   Filepath TEXT)")
 
     def write(self, host, nbtname, share, fileattrs, filepath):
-        if not fileattrs['directory']:
-            query = "INSERT INTO Entries VALUES(?, ?, ?, ?, ?)"
-            self.cur.execute( query, ("F".encode('utf-8'), host.encode('utf-8'), nbtname.encode('utf-8'), share.encode('utf-8'), filepath.encode('utf-8')) )
-        else:
-            query = "INSERT INTO Entries VALUES(?, ?, ?, ?, ?)"
-            self.cur.execute( query, ("D".encode('utf-8'), host.encode('utf-8'), nbtname.encode('utf-8'), share.encode('utf-8'), filepath.encode('utf-8')) )
+        query = "INSERT INTO Entries VALUES(?, ?, ?, ?, ?, ?, ?)"
+        data = ( host,
+                 nbtname,
+                 int(fileattrs.get_attributes()),
+                 int(fileattrs.get_mtime_epoch()),
+                 int(fileattrs.get_filesize()),
+                 share,
+                 filepath )
+        self.cur.execute( query, data )
 
     def commit(self):
         self.dbconn.commit()
@@ -57,8 +77,12 @@ class StandardOutWriter():
         pass
 
     def write(self, host, nbtname, share, fileattrs, filepath):
-        outhost = host if nbtname == '' else host + ' (' + str(nbtname) + ')'
-        if not fileattrs['directory']:
-            print u"  [*] -F- ".encode('utf-8') + outhost.encode('utf-8') + u'\\'.encode('utf-8') + share.encode('utf-8') + filepath
-        else:
-            print u"  [*] -D- ".encode('utf-8') + outhost.encode('utf-8') + u'\\'.encode('utf-8') + share.encode('utf-8') + filepath
+        is_ro = 'R' if fileattrs.is_readonly() else '-'
+        is_system = 'S' if fileattrs.is_system() else '-'
+        is_hidden = 'H' if fileattrs.is_hidden() else '-'
+        is_directory = 'D' if fileattrs.is_directory() else '-'
+        attrs = "-".join([is_ro, is_system, is_hidden, is_directory])
+        mtime = datetime.datetime.fromtimestamp(int(fileattrs.get_mtime_epoch())).strftime('%Y-%m-%d')
+        ctime = datetime.datetime.fromtimestamp(int(fileattrs.get_ctime_epoch())).strftime('%Y-%m-%d')
+        size = str(sizeof_fmt(fileattrs.get_filesize())).ljust(10)
+        print u"  [*] ".encode('utf-8') + attrs.ljust(4) + '   ' + mtime + '   ' + size + '   ' + share.encode('utf-8') + filepath

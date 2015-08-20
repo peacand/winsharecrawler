@@ -109,13 +109,8 @@ class SmbCrawler():
         f_pwd = string.replace(f_pwd,'/','\\')
         f_pwd = ntpath.normpath(f_pwd)
         for f in self.smb.listPath(share, f_pwd):
-            tmp =  { 'directory': True if f.is_directory() else False,
-                     'size' : f.get_filesize(),
-                     'ctime': time.ctime(float(f.get_mtime_epoch())),
-                     'shortname' : f.get_shortname(), 
-                     'longname' : f.get_longname() }
-            if tmp['longname'] not in ['.', '..']:
-                files += [tmp]
+            if f.get_longname() not in ['.', '..']:
+                files += [f]
         return files
 
     def use(self,share):
@@ -133,11 +128,11 @@ class SmbCrawler():
                 print ("Error in ls("+share+","+root+","+str(maxdepth)+") : " + str(e))
             return []
         for f in files:
-            new_root = ntpath.join(root, f['longname'])
+            new_root = ntpath.join(root, f.get_longname())
             new_root = ntpath.normpath(new_root)
             self.outwriter.write(self.host, self.nbtname, share, f, new_root)
-            if f['directory']:
-                self.spider(share, root + f['longname'] + '\\', maxdepth - 1)
+            if f.is_directory():
+                self.spider(share, root + f.get_longname() + '\\', maxdepth - 1)
 
     def crawl(self, maxdepth, thread = 1):
         self.maxdepth = maxdepth
@@ -189,6 +184,8 @@ if __name__ == "__main__":
         print ('\n -- ' + rhost + ' -- \n')
         try:
             crawler.open(rhost,445)
+            if crawler.nbtname != '':
+                print ('[+] Resolve netbios name : ' + crawler.nbtname + '\n')
             crawler.login(domain, username, password)
             crawler.crawl(maxdepth = cmdargs['maxdepth'])
         except Exception as e:
