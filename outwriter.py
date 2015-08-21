@@ -51,7 +51,7 @@ class SqliteOutWriter():
             self.cur.execute("CREATE TABLE Entries(Host TEXT, \
                                                    NbtName TEXT, \
                                                    Attributes INTEGER, \
-                                                   Mtime INTEGER, \
+                                                   Smbmtime INTEGER, \
                                                    Size INTEGER, \
                                                    Share TEXT, \
                                                    Filepath TEXT)")
@@ -61,7 +61,7 @@ class SqliteOutWriter():
         data = ( host,
                  nbtname,
                  int(fileattrs.get_attributes()),
-                 int(fileattrs.get_mtime_epoch()),
+                 int(fileattrs.get_mtime()), #careful it's smb time, not timestamp
                  int(fileattrs.get_filesize()),
                  share,
                  filepath )
@@ -83,6 +83,5 @@ class StandardOutWriter():
         is_directory = 'D' if fileattrs.is_directory() else '-'
         attrs = "-".join([is_ro, is_system, is_hidden, is_directory])
         mtime = datetime.datetime.fromtimestamp(int(fileattrs.get_mtime_epoch())).strftime('%Y-%m-%d')
-        ctime = datetime.datetime.fromtimestamp(int(fileattrs.get_ctime_epoch())).strftime('%Y-%m-%d')
         size = str(sizeof_fmt(fileattrs.get_filesize())).ljust(10)
         print u"  [*] ".encode('utf-8') + attrs.ljust(4) + '   ' + mtime + '   ' + size + '   ' + share.encode('utf-8') + filepath
