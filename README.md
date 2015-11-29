@@ -1,3 +1,9 @@
+# Requirements
+
+  * Python 2.7
+  * Impacket Python library
+  * sqlite3 Python library 
+
 # sharecrawler
 Python crawler for remote Windows shares
 
